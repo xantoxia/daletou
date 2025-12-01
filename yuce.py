@@ -8,20 +8,25 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 from xgboost import XGBRegressor
 import random
+import urllib.parse
 
 # ------------------------------
-# GitHub 历史数据加载
+# GitHub 历史数据加载（自动处理中文 URL）
 # ------------------------------
 url = "https://raw.githubusercontent.com/xantoxia/daletou/main/data/history.csv"
 
 @st.cache_data
 def load_github_history():
-    df = pd.read_csv(url)
-    # 转换成你内部使用的格式：(前区, 后区)
-    return [(row[:5].tolist(), row[5:].tolist()) for _, row in df.iterrows()]
+    try:
+        safe_url = urllib.parse.quote(url, safe=":/")
+        df = pd.read_csv(safe_url)
+        return [(row[:5].tolist(), row[5:].tolist()) for _, row in df.iterrows()]
+    except Exception as e:
+        st.warning(f"⚠ 无法从 GitHub 加载数据：{e}")
+        return []
 
 # ------------------------------
-# 初始化 Session State（放 GitHub 数据）
+# 初始化 Session State（云端记忆）
 # ------------------------------
 if "history" not in st.session_state:
     st.session_state.history = load_github_history()
@@ -70,7 +75,7 @@ def random_numbers():
     return front, back
 
 # ------------------------------
-# 构造 ML 数据集（简单示例）
+# 构造 ML 数据集
 # ------------------------------
 def build_ml_dataset():
     data = []
@@ -80,7 +85,7 @@ def build_ml_dataset():
     return np.array(data)
 
 # ------------------------------
-# LSTM 预测（预测均值作为参考）
+# LSTM 神经网络预测
 # ------------------------------
 def lstm_predict():
     data = build_ml_dataset()
@@ -88,7 +93,6 @@ def lstm_predict():
         return None  
 
     X, y = data[:-1], data[1:]
-
     X = X.reshape((X.shape[0], 1, X.shape[1]))
 
     model = Sequential([
@@ -125,7 +129,7 @@ def xgb_predict():
     return front, back
 
 # ------------------------------
-# 可视化：冷热号 & 走势
+# 可视化
 # ------------------------------
 def render_visualizations():
     history = st.session_state.history
@@ -149,7 +153,7 @@ def render_visualizations():
 # Streamlit UI
 # ------------------------------
 st.title("🎯 大乐透 AI 智能预测系统（Streamlit 云版）")
-st.write("历史数据全部保存在 Streamlit Session State，可在云端持续运行。")
+st.write("历史数据保存在 Session State，可云端持续运行。")
 
 st.header("➕ 输入最新开奖号码")
 nums = st.text_input("格式：1 5 9 22 33 3 11 (前5后2)")
