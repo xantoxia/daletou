@@ -61,8 +61,7 @@ if "hotcold_fixed" not in st.session_state:
 # ------------------------------
 def add_new_result(front, back, date):
     st.session_state.history.append((front, back, date))
-    # 新数据加入后清除固定预测
-    st.session_state.hotcold_fixed = None
+    st.session_state.hotcold_fixed = None  # 新数据加入后清除固定预测
 
 # ------------------------------
 # 保存预测记录
@@ -95,10 +94,27 @@ def random_numbers():
     return front, back
 
 # ------------------------------
+# 去重 + 补齐函数
+# ------------------------------
+def fix_duplicates(pred_front, pred_back):
+    # 前区
+    front = sorted(list(set(min(max(int(x),1),35) for x in pred_front)))
+    remaining_front = [x for x in range(1,36) if x not in front]
+    while len(front) < 5:
+        front.append(random.choice(remaining_front))
+        remaining_front.remove(front[-1])
+    # 后区
+    back = sorted(list(set(min(max(int(x),1),12) for x in pred_back)))
+    remaining_back = [x for x in range(1,13) if x not in back]
+    while len(back) < 2:
+        back.append(random.choice(remaining_back))
+        remaining_back.remove(back[-1])
+    return sorted(front), sorted(back)
+
+# ------------------------------
 # 冷热号预测（固定概率最大组合 + 自适应权重）
 # ------------------------------
 def hot_cold_predict():
-    # 如果已有固定预测，直接返回
     if st.session_state.hotcold_fixed is not None:
         return st.session_state.hotcold_fixed
 
@@ -162,8 +178,7 @@ def lstm_predict():
     model.compile(optimizer="adam", loss="mse")
     model.fit(X, y, epochs=10, batch_size=4, verbose=0)
     pred = model.predict(X[-1].reshape(1,1,7))[0]
-    front = sorted([min(max(int(x),1),35) for x in pred[:5]])
-    back = sorted([min(max(int(x),1),12) for x in pred[5:]])
+    front, back = fix_duplicates(pred[:5], pred[5:])
     return front, back
 
 # ------------------------------
@@ -187,8 +202,7 @@ def xgb_predict():
 
     model.fit(X, y)
     pred = model.predict(X[-1].reshape(1,-1))[0]
-    front = sorted([min(max(int(x),1),35) for x in pred[:5]])
-    back = sorted([min(max(int(x),1),12) for x in pred[5:]])
+    front, back = fix_duplicates(pred[:5], pred[5:])
     return front, back
 
 # ------------------------------
@@ -214,7 +228,7 @@ def render_visualizations():
 # ------------------------------
 # Streamlit UI
 # ------------------------------
-st.title("🎯 大乐透 AI 智能预测系统（云端版，固定冷热号预测）")
+st.title("🎯 大乐透 AI 智能预测系统（云端版，去重修正LSTM/XGBoost）")
 
 # 输入开奖号码
 nums = st.text_input("格式：1 5 9 22 33 3 11")
