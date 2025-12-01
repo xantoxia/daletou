@@ -28,8 +28,9 @@ repo = g.get_repo(GITHUB_REPO)
 @st.cache_data
 def load_github_history():
     try:
-        url = f"https://raw.githubusercontent.com/xantoxia/daletou/main/data/history.csv"
-        df = pd.read_csv(url)
+        url = "https://raw.githubusercontent.com/xantoxia/daletou/main/data/history.csv"
+        # 指定 encoding，尝试 utf-8-sig
+        df = pd.read_csv(url, encoding="utf-8-sig")
         df = df.dropna()
         df.iloc[:, :7] = df.iloc[:, :7].astype(int)
         if df.shape[1] >= 8:
