@@ -13,7 +13,7 @@ import datetime
 # ------------------------------
 # GitHub 历史数据加载
 # ------------------------------
-url = "https://raw.githubusercontent.com/xantoxia/daletou/data/history.csv"
+url = "https://github.com/xantoxia/daletou/blob/main/data/history.csv"
 
 @st.cache_data
 def load_github_history():
