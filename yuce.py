@@ -7,18 +7,24 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 from xgboost import XGBRegressor
-
-url = "https://raw.githubusercontent.com/你的账号/你的仓库/main/data/history.csv"
-history = pd.read_csv(url)
-
-
-st.set_page_config(page_title="Daletou AI Predictor", layout="wide")
+import random
 
 # ------------------------------
-# 初始化 Session State（Streamlit Cloud 无法写本地文件）
+# GitHub 历史数据加载
+# ------------------------------
+url = "https://raw.githubusercontent.com/你的账号/你的仓库/main/data/history.csv"
+
+@st.cache_data
+def load_github_history():
+    df = pd.read_csv(url)
+    # 转换成你内部使用的格式：(前区, 后区)
+    return [(row[:5].tolist(), row[5:].tolist()) for _, row in df.iterrows()]
+
+# ------------------------------
+# 初始化 Session State（放 GitHub 数据）
 # ------------------------------
 if "history" not in st.session_state:
-    st.session_state.history = []  # 每条为 ([前区5], [后区2])
+    st.session_state.history = load_github_history()
 
 # ------------------------------
 # 保存号码到内存
