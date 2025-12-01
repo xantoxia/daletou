@@ -28,7 +28,7 @@ repo = g.get_repo(GITHUB_REPO)
 @st.cache_data
 def load_github_history():
     try:
-        url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{CSV_PATH}"
+        url = f"https://raw.githubusercontent.com/xantoxia/daletou/main/data/history.csv"
         df = pd.read_csv(url)
         df = df.dropna()
         df.iloc[:, :7] = df.iloc[:, :7].astype(int)
@@ -43,8 +43,8 @@ def load_github_history():
             date = row["date"]
             result.append((front, back, date))
         return result
-    except:
-        st.error("⚠ 无法从 GitHub 加载数据：请检查 CSV 格式。")
+    except Exception as e:
+        st.error(f"⚠ 无法从 GitHub 加载数据：{e}")
         return []
 
 # 初始化历史数据
