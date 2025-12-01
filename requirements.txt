@@ -1,0 +1,12 @@
+streamlit
+pandas
+numpy
+scikit-learn
+matplotlib
+tensorflow-cpu
+seaborn
+plotly
+xgboost
+requests
+beautifulsoup4
+lxml
