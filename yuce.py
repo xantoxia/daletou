@@ -8,6 +8,10 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 from xgboost import XGBRegressor
 
+url = "https://raw.githubusercontent.com/你的账号/你的仓库/main/data/history.csv"
+history = pd.read_csv(url)
+
+
 st.set_page_config(page_title="Daletou AI Predictor", layout="wide")
 
 # ------------------------------
