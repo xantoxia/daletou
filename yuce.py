@@ -10,15 +10,16 @@ from xgboost import XGBRegressor
 import random
 import datetime
 from github import Github
+import requests
+from io import StringIO
 
 # ------------------------------
 # GitHub 配置
 # ------------------------------
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN")  # Streamlit secrets
-GITHUB_REPO = "xantoxia/daletou"  # 仓库名
-CSV_PATH = "data/history.csv"     # CSV 文件路径
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN")  # Streamlit Secrets
+GITHUB_REPO = "xantoxia/daletou"              # 仓库名
+CSV_PATH = "data/history.csv"                 # CSV 路径
 
-# 连接 GitHub
 g = Github(GITHUB_TOKEN)
 repo = g.get_repo(GITHUB_REPO)
 
@@ -28,21 +29,31 @@ repo = g.get_repo(GITHUB_REPO)
 @st.cache_data
 def load_github_history():
     try:
-        url = "https://raw.githubusercontent.com/xantoxia/daletou/main/data/history.csv"
-        # 指定 encoding，尝试 utf-8-sig
-        df = pd.read_csv(url, encoding="utf-8-sig")
+        url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{CSV_PATH}"
+        r = requests.get(url)
+        r.raise_for_status()
+
+        # 尝试 UTF-8
+        try:
+            df = pd.read_csv(StringIO(r.content.decode("utf-8-sig")))
+        except UnicodeDecodeError:
+            # 再尝试 GBK
+            df = pd.read_csv(StringIO(r.content.decode("gbk")))
+
         df = df.dropna()
         df.iloc[:, :7] = df.iloc[:, :7].astype(int)
         if df.shape[1] >= 8:
             df["date"] = pd.to_datetime(df.iloc[:, 7], errors="coerce")
         else:
             df["date"] = None
+
         result = []
         for _, row in df.iterrows():
             front = row[:5].tolist()
             back = row[5:7].tolist()
             date = row["date"]
             result.append((front, back, date))
+
         return result
     except Exception as e:
         st.error(f"⚠ 无法从 GitHub 加载数据：{e}")
@@ -53,23 +64,34 @@ if "history" not in st.session_state:
     st.session_state.history = load_github_history()
 
 # ------------------------------
-# 保存开奖号码（并更新 GitHub）
+# 保存开奖号码并同步到 GitHub
 # ------------------------------
 def add_new_result(front, back, date):
     st.session_state.history.append((front, back, date))
-    # 同步到 GitHub
+
+    # 转成 DataFrame
     df_new = pd.DataFrame([
         {"f1": f[0], "f2": f[1], "f3": f[2], "f4": f[3], "f5": f[4],
          "b1": b[0], "b2": b[1],
          "date": d.strftime("%Y-%m-%d") if d else ""}
         for f, b, d in st.session_state.history
     ])
+
     csv_str = df_new.to_csv(index=False)
+
     try:
         contents = repo.get_contents(CSV_PATH)
         repo.update_file(contents.path, "更新历史数据", csv_str, contents.sha)
     except:
         repo.create_file(CSV_PATH, "创建历史数据", csv_str)
+
+# ------------------------------
+# 随机号码生成
+# ------------------------------
+def random_numbers():
+    front = sorted(np.random.choice(range(1, 36), 5, replace=False))
+    back = sorted(np.random.choice(range(1, 13), 2, replace=False))
+    return front, back
 
 # ------------------------------
 # 冷热号预测
@@ -78,31 +100,29 @@ def hot_cold_predict():
     history = st.session_state.history
     if len(history) == 0:
         return random_numbers()
+
     front_all, back_all = [], []
     for f, b, _ in history:
         front_all += f
         back_all += b
+
     front_count = Counter(front_all)
     back_count = Counter(back_all)
+
     def make_probs(counter, total):
         arr = np.array([counter.get(i, 0) + 1 for i in range(1, total + 1)], float)
         return arr / arr.sum()
+
     front_probs = make_probs(front_count, 35)
     back_probs = make_probs(back_count, 12)
+
     front_pred = np.random.choice(range(1, 36), 5, replace=False, p=front_probs)
     back_pred = np.random.choice(range(1, 13), 2, replace=False, p=back_probs)
+
     return sorted(front_pred.tolist()), sorted(back_pred.tolist())
 
 # ------------------------------
-# 随机号码
-# ------------------------------
-def random_numbers():
-    front = sorted(np.random.choice(range(1, 36), 5, replace=False))
-    back = sorted(np.random.choice(range(1, 13), 2, replace=False))
-    return front, back
-
-# ------------------------------
-# ML 数据集
+# 构建 ML 数据集
 # ------------------------------
 def build_ml_dataset():
     data = []
@@ -154,9 +174,11 @@ def render_visualizations():
     for f, b, _ in history:
         front_all += f
         back_all += b
+
     df_front = pd.DataFrame({"number": front_all})
     heat = px.histogram(df_front, x="number", nbins=35, title="前区冷热号")
     st.plotly_chart(heat, use_container_width=True)
+
     df_trend = pd.DataFrame(
         [{"date": d, **{f"n{i+1}": v for i, v in enumerate(f + b)}} for f, b, d in history]
     )
@@ -164,10 +186,11 @@ def render_visualizations():
     st.line_chart(df_trend.set_index("date"))
 
 # ------------------------------
-# UI 页面
+# Streamlit UI
 # ------------------------------
 st.title("🎯 大乐透 AI 智能预测系统（日期版）")
 
+# 输入开奖号码
 nums = st.text_input("格式：1 5 9 22 33 3 11")
 date_input = st.date_input("开奖日期", value=datetime.date.today())
 btn = st.button("保存到历史记录")
@@ -183,7 +206,7 @@ if btn:
     except:
         st.error("数字格式错误")
 
-# 历史数据表格（可下载）
+# 历史数据表格
 df_show = pd.DataFrame(
     [{"date": d,
       "f1": f[0], "f2": f[1], "f3": f[2], "f4": f[3], "f5": f[4],
