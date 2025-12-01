@@ -12,7 +12,7 @@ import random
 # ------------------------------
 # GitHub 历史数据加载
 # ------------------------------
-url = "https://raw.githubusercontent.com/你的账号/你的仓库/main/data/history.csv"
+url = "https://raw.githubusercontent.com/xantoxia/daletou/main/data/history.csv"
 
 @st.cache_data
 def load_github_history():
