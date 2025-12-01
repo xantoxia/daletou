@@ -10,3 +10,4 @@ xgboost
 requests
 beautifulsoup4
 lxml
+PyGithub
